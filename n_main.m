@@ -178,6 +178,7 @@ prec_in_far_tria = 1;
 distance_near = 0.004;
 disp("start computation of Btotal\ncomputed elements:")
 elem_index_vector = 1:num_elements;
+%{
 for ii = 1:num_elements
   if mod(ii,50) == 0
     disp(ii)
@@ -228,6 +229,7 @@ for ii = 1:num_elements
     endif
   end
 end
+%}
 Btot = Btot.*(GG*mu0/4/pi);
 Btot += [B0x,B0y,B0z]'.*ones(3,num_elements);
 Bm = Btot - (dot(Btot,cross(X2-X1,X3-X1))./((norm(cross(X2-X1,X3-X1),'cols')).^2)) .* cross(X2-X1,X3-X1);
