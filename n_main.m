@@ -167,7 +167,7 @@ for ii = 1:num_elements
   end
 end
 
-
+np = 4;
 
 
 Btot = zeros(3,num_elements);
@@ -178,7 +178,13 @@ prec_in_far_tria = 1;
 distance_near = 0.004;
 disp("start computation of Btotal\ncomputed elements:")
 elem_index_vector = 1:num_elements;
+pkg load parallel
+par_fun = @(id_pr) parallel_losses(id_pr,np,prec_in_small_tria,...
+            distance_near,prec_in_near_tria,prec_in_far_tria,...
+            midpoint,num_elements,J,X1,X2,X3);
+
 %{
+  
 for ii = 1:num_elements
   if mod(ii,50) == 0
     disp(ii)
@@ -230,6 +236,8 @@ for ii = 1:num_elements
   end
 end
 %}
+[Btot1,Btot2,Btot3,Btot3] = parcellfun(np,par_fun,{0,1,2,3})
+Btot = [Btot1,Btot2,Btot3,Btot3];
 Btot = Btot.*(GG*mu0/4/pi);
 Btot += [B0x,B0y,B0z]'.*ones(3,num_elements);
 Bm = Btot - (dot(Btot,cross(X2-X1,X3-X1))./((norm(cross(X2-X1,X3-X1),'cols')).^2)) .* cross(X2-X1,X3-X1);
