@@ -236,8 +236,12 @@ for ii = 1:num_elements
   end
 end
 %}
-[Btot1,Btot2,Btot3,Btot3] = parcellfun(np,par_fun,{0,1,2,3})
-Btot = [Btot1,Btot2,Btot3,Btot3];
+%[Btot1,Btot2,Btot3,Btot4]
+
+Btot = parcellfun(np,par_fun,{0,1,2,3});
+%Btot = [Btot1,Btot2,Btot3,Btot3];
+Btot = [Btot{1,1};Btot{1,2};Btot{1,3};Btot{1,4}];
+Btot = Btot';
 Btot = Btot.*(GG*mu0/4/pi);
 Btot += [B0x,B0y,B0z]'.*ones(3,num_elements);
 Bm = Btot - (dot(Btot,cross(X2-X1,X3-X1))./((norm(cross(X2-X1,X3-X1),'cols')).^2)) .* cross(X2-X1,X3-X1);

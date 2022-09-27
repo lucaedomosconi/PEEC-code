@@ -1,7 +1,6 @@
-function Btot = parallel_losses(id_pr,np,prec_in_small_tria,...
+function [Btot] = parallel_losses(id_pr,np,prec_in_small_tria,...
             distance_near,prec_in_near_tria,prec_in_far_tria,...
             midpoint,num_elements,J,X1,X2,X3)
-disp(id_pr)
 Btot = zeros(3,num_elements/np);
 for iii = 1:num_elements/np
     ii = id_pr*(num_elements/np) + iii;
@@ -54,4 +53,5 @@ for iii = 1:num_elements/np
     endif
   end
 end
+Btot = {Btot'};
 end
