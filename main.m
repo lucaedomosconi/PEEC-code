@@ -1,4 +1,4 @@
-clearvars
+% clearvars
 % close all
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -6,7 +6,7 @@ clearvars
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 sigma = 4.6729e6;
-freq = 50;
+freq = 4000;
 thickness = 3e-3;
 omega = 2 * pi * freq;
 mu0 = 4 * pi * 1e-7;
@@ -14,7 +14,7 @@ mu0 = 4 * pi * 1e-7;
 % uniform background magnetic field (peak values)
 B0x = 0;
 B0y = 0;
-B0z = 1e-3;
+B0z = 1;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % mesh construction                                                            %
@@ -22,12 +22,18 @@ B0z = 1e-3;
 
 a = 0.1;
 b = 0.1;
-m = 20;
-n = 20;
-figure
+m = 24;
+n = 24;
+
 [Y,X] = meshgrid(linspace(-b/2,b/2,n+1), linspace(-a/2,a/2,m+1));
-%Z = zeros(size(X));
-Z = 10 * (X.^2 - Y.^2);
+[Y,X] = meshgrid(b/2*sin(linspace(-pi/2,pi/2,n+1)),a/2*sin(linspace(-pi/2,pi/2,m+1)));
+
+Z = zeros(size(X));
+Z = 0 * (X.^2 - Y.^2);
+
+
+% plot_options = 2; %1 to plot separately real and imag, 2 to plot together
+
 % nodes matrix: (size 3 x num_nodes)
 nodes = [X(:)'; Y(:)'; Z(:)'];
 
@@ -40,8 +46,11 @@ cnc += kron([0:m-1], [1,1]);
 cnc = repmat(cnc, 1, n);
 cnc += kron([0:m+1:m*n], ones(3,m*2));
 
-trimesh(cnc', nodes(1,:), nodes(2,:), nodes(3,:));
-axis equal
+if plot_options
+  figure
+  trimesh(cnc', nodes(1,:), nodes(2,:), nodes(3,:));
+  axis equal
+endif
 
 midpoint = squeeze(sum(reshape(nodes(:,cnc), 3,3,[]), 2))/3;
 
@@ -170,35 +179,50 @@ Jabs_real = norm(real(J), 2, 'cols');
 Jabs_imag = norm(imag(J), 2, 'cols');
 
 
-figure
-hold on
-axis equal
-hh = trisurf(cnc', nodes(1,:), nodes(2,:), nodes(3,:), Jabs_real);
-set(hh,'FaceColor','flat');
-colormap('jet')
-colorbar
-quiver3(midpoint(1,:), midpoint(2,:), midpoint(3,:), ...
-        real(J(1,:)), real(J(2,:)), real(J(3,:)), ...
-        'k', 'linewidth', 1.5)
-title('Volume current density - real part [A/m^2]')
+if plot_options
+  if plot_options == 1
+    figure
+    hold on
+    axis equal
+    hh = trisurf(cnc', nodes(1,:), nodes(2,:), nodes(3,:), Jabs_real);
+    set(hh,'FaceColor','flat');
+    colormap('jet')
+    colorbar
+    quiver3(midpoint(1,:), midpoint(2,:), midpoint(3,:), ...
+            real(J(1,:)), real(J(2,:)), real(J(3,:)), ...
+            'k', 'linewidth', 1.5);
+    title('Volume current density - real part [A/m^2]')
 
-figure
-hold on
-axis equal
-hh = trisurf(cnc', nodes(1,:), nodes(2,:), nodes(3,:), Jabs_imag);
-set(hh,'FaceColor','flat');
-colormap('jet')
-colorbar
-quiver3(midpoint(1,:), midpoint(2,:), midpoint(3,:), ...
-        imag(J(1,:)), imag(J(2,:)), imag(J(3,:)), ...
-        'k')
-title('Volume current density - imaginary part [A/m^2]')
+    figure
+    hold on
+    axis equal
+    hh = trisurf(cnc', nodes(1,:), nodes(2,:), nodes(3,:), Jabs_imag);
+    set(hh,'FaceColor','flat');
+    colormap('jet')
+    colorbar
+    quiver3(midpoint(1,:), midpoint(2,:), midpoint(3,:), ...
+            imag(J(1,:)), imag(J(2,:)), imag(J(3,:)), ...
+            'k');
+    title('Volume current density - imaginary part [A/m^2]')
+  endif
+  if plot_options == 2
+    figure
+    hold on
+    axis equal
+    hh = trisurf(cnc', nodes(1,:), nodes(2,:), nodes(3,:), norm([Jabs_real;Jabs_imag],'cols'));
+    set(hh,'FaceColor','flat');
+    colormap('jet')
+    colorbar
 
-figure
-hold on
-axis equal
-hh = trisurf(cnc', nodes(1,:), nodes(2,:), nodes(3,:), losses);
-set(hh,'FaceColor','flat');
-colormap('jet')
-colorbar
-title('Volumetric loss density [W/m^3]')
+    title('Volume current density [A/m^2]')
+  endif
+  
+  figure
+  hold on
+  axis equal
+  hh = trisurf(cnc', nodes(1,:), nodes(2,:), nodes(3,:), losses);
+  set(hh,'FaceColor','flat');
+  colormap('jet')
+  colorbar
+  title('Volumetric loss density [W/m^3]')
+endif
