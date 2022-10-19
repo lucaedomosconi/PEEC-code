@@ -1,53 +1,35 @@
 % clearvars
 % close all
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% physical parameters                                                          %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if (!exist('postprocess') || !postprocess)
-sigma = 4.6729e6;
-freq = 4000;
-thickness = 3e-3;
 omega = 2 * pi * freq;
-mu0 = 4 * pi * 1e-7;
-mr = 1.;
-mu = mu0*mr;
 skindepth = sqrt(2/omega/mu/sigma);
-
-% uniform background magnetic field (peak values)
-B0x = 0;
-B0y = 0;
-B0z = 1;
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % mesh construction                                                            %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-a = 0.1;
-b = 0.1;
-m = 20;
-n = 20;
+
 
 [Y,X] = meshgrid(linspace(-b/2,b/2,n+1), linspace(-a/2,a/2,m+1));
-[Y,X] = meshgrid(b/2*sin(linspace(-pi/2,pi/2,n+1)),a/2*sin(linspace(-pi/2,pi/2,m+1)));
+if mod_mesh
+  [Y,X] = meshgrid(b/2*sin(linspace(-pi/2,pi/2,n+1)),a/2*sin(linspace(-pi/2,pi/2,m+1)));
+endif
 %Z = zeros(size(X));
 Z = 0. * (X.^2 - Y.^2); % plane
 %Z = sqrt(a^2-X.^2) + 0.* Y;
+GG = tanh((1+1i)*thickness/2/skindepth)/((1+1i)*thickness/2/skindepth);
+if !G_form
+  GG = 1.;
+endif
 
+% preparing data input
+str_freq = [[folder_str_prefix freq_str(freq_id,:) "/bx_real.txt"];...
+[folder_str_prefix freq_str(freq_id,:) "/by_real.txt"];...
+[folder_str_prefix freq_str(freq_id,:) "/bz_real.txt"];...
+[folder_str_prefix freq_str(freq_id,:) "/bx_imag.txt"];...
+[folder_str_prefix freq_str(freq_id,:) "/by_imag.txt"];...
+[folder_str_prefix freq_str(freq_id,:) "/bz_imag.txt"]];
+titles = ["Bx real"; "By real"; "Bz real";"Bx imag"; "By imag"; "Bz imag"];
 
-% script options
-if !exist('plate')
-plate = 1
-endif
-if !exist('spire_generated_field')
-spire_generated_field = 0
-endif
-if !exist('plot_options')
-plot_options = [0,0,0,0,0,0];
-endif
-if !exist('G_form')
-G_form = 1
-endif
+if (!exist('postprocess') || !postprocess)
 
 pkg load parallel
 np = 4;
@@ -93,11 +75,11 @@ Bext = [B0x,B0y,B0z]'.*ones(3,num_elements);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if spire_generated_field
 % Bz(0,0,0) = 2*sqrt(2)*mu0*I/pi/L when h = 0
-  I_ = 1;
-  L_ = 1.2; h_ = 0.0;
-  I_ = pi*L_/mu0/2^1.5;
-  L_ = 0.4;
-  h_ = 0.05;
+  I_ = 1.;
+  L_ = 0.025; h_ = 0.05;
+%  I_ = pi*L_/mu0/2^1.5;
+%  L_ = 0.4;
+%  h_ = 0.05;
   A0_func = @(x) [solvePotential(x,I_,L_,h_,1);
                   solvePotential(x,I_,L_,h_,2);
                   solvePotential(x,I_,L_,h_,3)];
@@ -125,10 +107,7 @@ rhs = zeros(num_nodes, 1);
 
 fprintf('Matrix assembly\n')
 tic
-GG = tanh((1+1i)*thickness/2/skindepth)/((1+1i)*thickness/2/skindepth);
-if !G_form
-  GG = 1.;
-endif
+
 for ii = 1:num_elements
 
   [gpi, gwi] = tri_gauss_points(3, X1(:, ii), X2(:, ii), X3(:, ii));
@@ -218,9 +197,9 @@ for ii = 1:num_elements
 end
 Js = J*thickness;
 Btot = zeros(3,num_elements);
-if !plate
-  prec_in_small_tria = 3;
-  prec_in_near_tria = 4;
+if compute_auto_induced_B
+  prec_in_small_tria = 4;
+  prec_in_near_tria = 5;
   prec_in_far_tria = 1;
   distance_near = 0.004;
   fprintf("start computation of Btotal\n");
@@ -239,7 +218,8 @@ if !plate
 endif
 fprintf('\n')
 Btot += Bext;
-Bm = Btot - (dot(cross(X2-X1,X3-X1),Btot)./((norm(cross(X2-X1,X3-X1),'cols')).^2)) .* cross(X2-X1,X3-X1);
+Bort = (dot(cross(X2-X1,X3-X1),Btot)./((norm(cross(X2-X1,X3-X1),'cols')).^2)) .* cross(X2-X1,X3-X1);
+Bm = Btot - Bort;
 
 
 losses = 0.5*real(dot(J,J,1)/GG/sigma - 1i*omega*dot(Bm,Bm)/GG/mu0);
@@ -251,64 +231,22 @@ losses_tot = losses * Area.' * thickness;
 
 %losses = 0.5 * dot(J,J,1) / sigma / GG;
 %losses_tot = losses * Area.' * thickness
-fprintf('Joule losses = %e W\n', losses_tot)
+fprintf('Joule losses = %e W', losses_tot)
 
 Jabs_real = norm(real(J), 2, 'cols');
 Jabs_imag = norm(imag(J), 2, 'cols');
-endif %% postprocess start
-fprintf("\npostprocess\n");
-if plot_options(2)
-  figure
-  hold on
-  axis equal
-  hh = trisurf(cnc', nodes(1,:), nodes(2,:), nodes(3,:), Jabs_real);
-  set(hh,'FaceColor','flat');
-  colormap('jet');
-  colorbar;
-  quiver3(midpoint(1,:), midpoint(2,:), midpoint(3,:), ...
-          real(J(1,:)), real(J(2,:)), real(J(3,:)), ...
-          'k', 'linewidth', 1.5);
-  title('Volume current density - real part [A/m^2]')
 
-  figure
-  hold on
-  axis equal
-  hh = trisurf(cnc', nodes(1,:), nodes(2,:), nodes(3,:), Jabs_imag);
-  set(hh,'FaceColor','flat');
-  colormap('jet');
-  colorbar;
-  quiver3(midpoint(1,:), midpoint(2,:), midpoint(3,:), ...
-          imag(J(1,:)), imag(J(2,:)), imag(J(3,:)), ...
-          'k');
-  title('Volume current density - imaginary part [A/m^2]')
-endif
-if plot_options(3)
-  figure
-  hold on
-  axis equal
-  hh = trisurf(cnc', nodes(1,:), nodes(2,:), nodes(3,:), norm([Jabs_real;Jabs_imag],'cols'));
-  set(hh,'FaceColor','flat');
-  colormap('jet');
-  colorbar;
-  title('Volume current density [A/m^2]')
-endif
-if plot_options(4)
-  figure
-  hold on
-  axis equal
-  hh = trisurf(cnc', nodes(1,:), nodes(2,:), nodes(3,:), losses);
-  set(hh,'FaceColor','flat');
-  colormap('jet');
-  colorbar;
-  title('Volumetric loss density [W/m^3]');
-endif
+
+endif %% postprocess start
+
 
 if plot_options(5)
+  fprintf("\ncomputing B on line:\n")
   h = 0.01;
   y = 0.00;
   include_external_field = 1;
   line_extention = 6*a;
-  line_subdivisions = 80;
+  line_subdivisions = 200;
   for bar = 1:line_subdivisions/5
     fprintf('_')
   end
@@ -325,20 +263,6 @@ if plot_options(5)
   if (spire_generated_field && include_external_field)
     BtotLine += B0_func(x_line);
   endif
-  figure
-  set(gcf,'InvertHardCopy','on')
-  plot(x_line(1,:),real(BtotLine(1,:)),'b-',...
-      x_line(1,:),real(BtotLine(2,:)),'r-',...
-      x_line(1,:),real(BtotLine(3,:)),'g-',...
-      x_line(1,:),imag(BtotLine(1,:)),'b--',...
-      x_line(1,:),imag(BtotLine(2,:)),'r--',...
-      x_line(1,:),imag(BtotLine(3,:)),'g--')
-  legend('Bx real','By real','Bz real','Bx imag','By imag','Bz imag')
-  str_title = sprintf("B at %d Hz",freq);
-  title(str_title)
-  
 endif
-fprintf("\n--------------------------------------------------\n")
 
-
-
+fprintf("\n");
