@@ -14,7 +14,9 @@ if mod_mesh
 endif
 %Z = zeros(size(X));
 Z = 0. * (X.^2 - Y.^2); % plane
-%Z = sqrt(a^2-X.^2) + 0.* Y;
+if semicilinder
+Z = a/2 - sqrt(a^2/4-X.^2) + 0.* Y;
+endif
 GG = tanh((1+1i)*thickness/2/skindepth)/((1+1i)*thickness/2/skindepth);
 if !G_form
   GG = 1.;
@@ -33,6 +35,9 @@ if (!exist('postprocess') || !postprocess)
 
 pkg load parallel
 np = 4;
+if mod(n*m,np)
+  frptintf("Error!\nn*m must be divisible by np\n")
+endif
 % nodes matrix: (size 3 x num_nodes)
 nodes = [X(:)'; Y(:)'; Z(:)'];
 
@@ -220,7 +225,7 @@ fprintf('\n')
 Btot += Bext;
 Bort = (dot(cross(X2-X1,X3-X1),Btot)./((norm(cross(X2-X1,X3-X1),'cols')).^2)) .* cross(X2-X1,X3-X1);
 Bm = Btot - Bort;
-
+%Bm = Bort; %if want to compute the real Bort decoment section in parallel_losses.m
 
 losses = 0.5*real(dot(J,J,1)/GG/sigma - 1i*omega*dot(Bm,Bm)/GG/mu0);
 losses_tot = thickness*dot(losses,Area);

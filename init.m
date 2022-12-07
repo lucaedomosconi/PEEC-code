@@ -1,12 +1,15 @@
-plot_options = [0,1,1,1,0,1];
+plot_options = [0,0,0,0,0,0];
 % 1: plot 3d grid
 % 2: plot average volume current density real and imag
 % 3: plot average volume current density norm
 % 4: plot volumetric loss density
 % 5: plot B on line and/or compare with benchmark
+%     1,3: plot in one figure and if 3 plot also benchmark in different figures
+%     2,4: plot in multiple figures, if 4 plot also benchmark in different figures
 % 6: plot B on plate -> needs compute_auto_induced_B = 1!!
 %                       and change Bm definition
 spire_generated_field = 0;
+semicilinder = 1; % no with spire generated field!
 compute_auto_induced_B = 1;
 G_form = 1;
 postprocess = 0; % 1 to run only postprocess
@@ -29,6 +32,7 @@ thickness = 3e-3;
 % warning: the following values may be modified by n_main ! %%%%%%%%%%%%%%%%%%%%
 omega = 2 * pi * freq;                                                         %
 skindepth = sqrt(2/omega/mu/sigma);                                            %
+thickness/ skindepth                                                           %
 GG = tanh((1+1i)*thickness/2/skindepth)/((1+1i)*thickness/2/skindepth);        %
 if !G_form                                                                     %
   GG = 1.;                                                                     %
@@ -44,13 +48,12 @@ B0z = 1;
 % data
 folder_str_prefix = "line_simulation_B_";
 freq_str = ["50Hz";"1KHz";"2KHz";"5KHz"];
-freq_id = 1;
+freq_id = 3;
 fields_id = [1,3,4,6];
 
-for freq = [50,1000,2000,5000]
+freq = 5000;
 n_main
-postprocess_plots
-end
+
 
 
 %{
